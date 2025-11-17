@@ -1,24 +1,30 @@
 {
   "name": "fabric-marketplace",
-  "version": "1.0.0",
-  "description": "Marketplace for Microsoft Fabric Claude Code plugins",
-  "owner": "Myst4ke",
-  "author": {
+  "owner": {
     "name": "Florian POSEZ",
     "email": ""
   },
-  "homepage": "https://github.com/Myst4ke/fabric-claude-plugin",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Myst4ke/fabric-claude-plugin.git"
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Marketplace for Microsoft Fabric Claude Code plugins",
+    "pluginRoot": "."
   },
-  "license": "MIT",
   "plugins": [
     {
       "name": "fabric-plugin",
-      "source": "fabric-plugin",
+      "source": "./fabric-plugin",
       "version": "0.1.0",
       "description": "Core plugin for interacting with Microsoft Fabric via REST API",
+      "author": {
+        "name": "Florian POSEZ",
+        "email": ""
+      },
+      "homepage": "https://github.com/Myst4ke/fabric-claude-plugin",
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/Myst4ke/fabric-claude-plugin.git"
+      },
+      "license": "MIT",
       "keywords": ["fabric", "microsoft", "data", "workspace", "lakehouse", "warehouse", "notebook"]
     }
   ]
