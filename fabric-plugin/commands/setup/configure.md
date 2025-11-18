@@ -18,20 +18,66 @@ Interactive command to set up Microsoft Fabric API authentication credentials. T
 
 ## Instructions
 
-### 1. Display Welcome Message
-Show a friendly introduction explaining what this command does:
+### 1. Display Welcome Message and Authentication Options
+Show a friendly introduction explaining both authentication methods:
 
 ```
 🔧 Microsoft Fabric API Configuration
 
-This wizard will help you configure credentials for accessing the Fabric API.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Choose Your Authentication Method
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-You'll need:
-  • Azure tenant ID
-  • Application (client) ID
-  • Client secret
+Option 1: Service Principal (this command)
+  • Best for: Automation, CI/CD, admin tasks
+  • Requires: Azure admin to create app registration
+  • Setup: Complex (Azure Portal + Fabric Admin)
+  • Access: Based on assigned permissions
 
-Don't have these? See setup guide at the end.
+Option 2: Microsoft Account (recommended for most users)
+  • Best for: Individual developers, personal use
+  • Requires: Just your Microsoft account
+  • Setup: Simple (/fabric:login - opens browser)
+  • Access: Your actual Fabric permissions
+  • No admin access needed! ✨
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Do you want to continue with Service Principal setup? (y/n)
+Or switch to user authentication: /fabric:login
+```
+
+**Check user response:**
+```bash
+read -r response
+
+if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
+  echo ""
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "  Switching to User Authentication"
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo ""
+  echo "Run this command to sign in with your Microsoft account:"
+  echo "  /fabric:login"
+  echo ""
+  echo "It will:"
+  echo "  • Open a browser window"
+  echo "  • Ask you to sign in"
+  echo "  • Work instantly - no Azure admin needed!"
+  echo ""
+  exit 0
+fi
+
+echo ""
+echo "Continuing with Service Principal setup..."
+echo ""
+echo "You'll need:"
+echo "  • Azure tenant ID"
+echo "  • Application (client) ID"
+echo "  • Client secret"
+echo ""
+echo "Don't have these? See setup guide at the end."
+echo ""
 ```
 
 ### 2. Check Existing Configuration

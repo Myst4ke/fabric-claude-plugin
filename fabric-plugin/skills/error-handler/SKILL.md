@@ -75,12 +75,20 @@ HTTP 401 Unauthorized
 Possible causes:
 1. Access token is expired or invalid
 2. Token is missing from Authorization header
-3. Service principal credentials are incorrect
+3. Credentials are incorrect or expired
 
 Actions:
-• Run `/fabric:configure` to update credentials
-• Verify FABRIC_TENANT_ID, FABRIC_CLIENT_ID, FABRIC_CLIENT_SECRET are set
+• For user authentication: /fabric:login
+• For service principal: /fabric:configure
 • Check token expiration (tokens expire after 60 minutes)
+• Verify correct authentication type: echo $FABRIC_AUTH_TYPE
+
+Service Principal setup:
+  • Verify FABRIC_TENANT_ID, FABRIC_CLIENT_ID, FABRIC_CLIENT_SECRET
+
+Delegated auth:
+  • Token cache: ~/.fabric/token_cache.json
+  • Re-authenticate if expired
 
 Technical details: {error.message}
 ```
@@ -101,11 +109,20 @@ You don't have permission to perform this action.
 
 Required permission: {required_permission}
 Your current role: {current_role}
+Authentication type: {auth_type}
 
 Actions:
 • Contact workspace admin to grant appropriate permissions
 • Required roles: Admin, Member, or Contributor
 • For capacity operations: Capacity contributor role required
+
+If using delegated auth (/fabric:login):
+  • Limited to your actual Fabric permissions
+  • Switch to service principal for admin tasks: /fabric:configure
+
+If using service principal:
+  • Add service principal to workspace with higher role
+  • Grant necessary permissions in Fabric Admin Portal
 
 Technical details: {error.message}
 ```
@@ -122,9 +139,13 @@ Affected operations:
 • User-specific actions
 
 Actions:
-• Use delegated auth flow (interactive login)
-• Switch to user account authentication
-• Check API documentation for operation requirements
+1. Switch to user authentication:
+   • Sign out: /fabric:logout
+   • Sign in with Microsoft account: /fabric:login
+   • Retry the operation
+
+2. Or check if alternative API endpoint supports service principals
+3. See API documentation for operation requirements
 
 Technical details: {error.message}
 ```
