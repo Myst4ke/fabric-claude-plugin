@@ -7,10 +7,7 @@
     "email": ""
   },
   "homepage": "https://github.com/Myst4ke/fabric-claude-plugin",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Myst4ke/fabric-claude-plugin.git"
-  },
+  "repository": "https://github.com/Myst4ke/fabric-claude-plugin.git",
   "license": "MIT",
   "keywords": [
     "fabric",
@@ -22,6 +19,11 @@
     "notebook"
   ],
   "commands": "./commands",
-  "agents": "./agents",
+  "agents": [
+    "./agents/fabric-admin.md",
+    "./agents/bi-analyst.md",
+    "./agents/notebook-developer.md",
+    "./agents/pipeline-engineer.md"
+  ],
   "skills": "./skills"
 }
