@@ -17,7 +17,7 @@ import time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '_shared'))
 
 from cli_args import SkillCLI
-from fabric_base import FABRIC_API_BASE, fabric_request, handle_http_error
+from fabric_base import FABRIC_API_BASE, fabric_request, fabric_lro_result, handle_http_error
 
 LRO_TIMEOUT = 300  # 5 minutes per operation
 LRO_POLL_INTERVAL = 3  # seconds
@@ -72,8 +72,11 @@ def get_definition(workspace_id, notebook_id):
             data = json.loads(response.read().decode('utf-8'))
             return extract_payload(data)
         elif response.status == 202:
-            location = response.headers.get('Location')
-            return poll_definition(location)
+            print("[INFO] Waiting for definition (long-running operation)...")
+            data = fabric_lro_result(response)
+            if data is None:
+                return None
+            return extract_payload(data)
 
     except urllib.error.HTTPError as e:
         handle_http_error(e, "Source notebook")
@@ -83,37 +86,14 @@ def get_definition(workspace_id, notebook_id):
         return None
 
 
-def poll_definition(location):
-    """Poll for definition completion."""
-    start_time = time.time()
-    while time.time() - start_time < LRO_TIMEOUT:
-        time.sleep(LRO_POLL_INTERVAL)
-
-        try:
-            response = fabric_request(location)
-            if response.status == 202:
-                continue
-            data = json.loads(response.read().decode('utf-8'))
-
-            status = data.get('status', 'Unknown')
-            if status == 'Succeeded':
-                return extract_payload(data)
-            elif status in ['Failed', 'Cancelled']:
-                print(f"[ERROR] Definition retrieval {status}")
-                return None
-
-        except urllib.error.HTTPError as e:
-            handle_http_error(e, "Operation")
-            return None
-
-    print("[ERROR] Timeout waiting for definition")
-    return None
-
 
 def extract_payload(data):
     """Extract base64 payload from definition response."""
     definition = data.get('definition', {})
     parts = definition.get('parts', [])
+    for part in parts:
+        if 'notebook-content' in part.get('path', ''):
+            return part.get('payload')
     if parts:
         return parts[0].get('payload')
     return None
@@ -131,9 +111,9 @@ def create_notebook(workspace_id, name):
             data = json.loads(response.read().decode('utf-8'))
             return data.get('id')
         elif response.status == 202:
-            # LRO - poll for completion
-            location = response.headers.get('Location')
-            return poll_create(location)
+            print("[INFO] Waiting for notebook creation (long-running operation)...")
+            data = fabric_lro_result(response)
+            return data.get('id') if data else None
 
     except urllib.error.HTTPError as e:
         handle_http_error(e, "Workspace")
@@ -142,33 +122,6 @@ def create_notebook(workspace_id, name):
         print(f"[ERROR] Failed to create notebook: {e}")
         return None
 
-
-def poll_create(location):
-    """Poll for notebook creation completion."""
-    start_time = time.time()
-    while time.time() - start_time < LRO_TIMEOUT:
-        time.sleep(LRO_POLL_INTERVAL)
-
-        try:
-            response = fabric_request(location)
-            if response.status == 202:
-                continue
-            data = json.loads(response.read().decode('utf-8'))
-
-            status = data.get('status', 'Unknown')
-            if status == 'Succeeded':
-                result = data.get('result', {})
-                return result.get('id')
-            elif status in ['Failed', 'Cancelled']:
-                print(f"[ERROR] Notebook creation {status}")
-                return None
-
-        except urllib.error.HTTPError as e:
-            handle_http_error(e, "Operation")
-            return None
-
-    print("[ERROR] Timeout waiting for notebook creation")
-    return None
 
 
 def update_definition(workspace_id, notebook_id, payload):

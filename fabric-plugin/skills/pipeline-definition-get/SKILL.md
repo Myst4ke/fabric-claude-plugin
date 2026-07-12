@@ -40,4 +40,4 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/py.sh" "${CLAUDE_PLUGIN_ROOT}/skills/
 - 0: Success
 - 1: Permanent error (usage error, not found, forbidden, decode failure)
 - 2: Retryable error (rate limit, server error, LRO still in progress)
-- 3: Authentication error (run /fabric-plugin:\setup:login)
+- 3: Authentication error (run /fabric-plugin:setup:login)

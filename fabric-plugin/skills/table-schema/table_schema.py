@@ -27,8 +27,21 @@ def handle_query_error(error, table_name):
             print(f"[ERROR] {message}")
         except Exception:
             print(f"[ERROR] Table not found or invalid: {table_name}")
+        _print_schema_hint()
         return 1
-    return handle_http_error(error, "Table")
+    rc = handle_http_error(error, "Table")
+    if error.code == 404:
+        _print_schema_hint()
+    return rc
+
+def _print_schema_hint():
+    print("")
+    print("[INFO] If this lakehouse has schemas enabled, the REST query API cannot")
+    print("       see its tables. Get the schema via SQL instead:")
+    print("  fabric-plugin:lakehouse-sql-query <workspace> <lakehouse> \\")
+    print("    \"SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS\"")
+    print("    \" WHERE TABLE_NAME = '<table>' ORDER BY ORDINAL_POSITION\"")
+
 
 
 def get_table_schema(workspace_id, lakehouse_id, table_name):

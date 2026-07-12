@@ -100,8 +100,10 @@ def main():
             help='Number of recent refreshes (default: 10)')
     args = cli.parse()
 
-    url = (f"{FABRIC_API_BASE}/workspaces/{args.workspace_id}"
-           f"/semanticModels/{args.semanticmodel_id}/refreshes?$top={args.top}")
+    # The Fabric API has no /semanticModels/{id}/refreshes endpoint; refresh
+    # history lives on the Power BI API (same token)
+    url = (f"https://api.powerbi.com/v1.0/myorg/groups/{args.workspace_id}"
+           f"/datasets/{args.semanticmodel_id}/refreshes?$top={args.top}")
     try:
         data = fabric_request_json(url)
     except urllib.error.HTTPError as e:

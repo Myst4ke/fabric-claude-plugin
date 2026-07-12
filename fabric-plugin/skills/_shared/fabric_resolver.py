@@ -152,6 +152,12 @@ class FabricCache:
         }
         self._save_cache()
 
+    def invalidate(self, key: str):
+        """Drop a single key (used to refetch a possibly stale list)."""
+        if key in self._cache:
+            del self._cache[key]
+            self._save_cache()
+
     def clear(self):
         """Clear all cached data."""
         self._cache = {}
@@ -370,6 +376,12 @@ def resolve_workspace(name_or_id: str, token: Optional[str] = None,
     workspaces = list_workspaces(token, cache)
     matches = fuzzy_match(name_or_id, workspaces)
 
+    if not matches and cache:
+        # The cached list may predate a freshly created workspace - refetch once
+        cache.invalidate('workspaces')
+        workspaces = list_workspaces(token, cache)
+        matches = fuzzy_match(name_or_id, workspaces)
+
     if not matches:
         raise NotFoundError(f"No workspace found matching '{name_or_id}'")
 
@@ -424,6 +436,12 @@ def resolve_item(name_or_id: str, workspace_id: str, item_type: str,
     items = list_items(workspace_id, item_type, token, cache)
     matches = fuzzy_match(name_or_id, items)
 
+    if not matches and cache:
+        # The cached list may predate a freshly created item - refetch once
+        cache.invalidate(f"workspace_{workspace_id}_{item_type}")
+        items = list_items(workspace_id, item_type, token, cache)
+        matches = fuzzy_match(name_or_id, items)
+
     if not matches:
         raise NotFoundError(f"No {item_type} found matching '{name_or_id}' in workspace")
 
@@ -472,6 +490,12 @@ def resolve_table(name_or_id: str, workspace_id: str, lakehouse_id: str,
 
     # Tables use 'name' instead of 'displayName'
     matches = fuzzy_match(name_or_id, tables, key='name')
+
+    if not matches and cache:
+        # The cached list may predate a freshly created table - refetch once
+        cache.invalidate(f"lakehouse_{lakehouse_id}_tables")
+        tables = list_tables(workspace_id, lakehouse_id, token, cache)
+        matches = fuzzy_match(name_or_id, tables, key='name')
 
     if not matches:
         raise NotFoundError(f"No table found matching '{name_or_id}' in lakehouse")

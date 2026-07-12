@@ -54,8 +54,8 @@ def display_workspaces(workspaces):
 
     print()
     print("Next steps:")
-    print("  /get-workspace <workspace-id>    Get workspace details")
-    print("  /list-users <workspace-id>       List workspace users")
+    print("  fabric-plugin:workspace-get <workspace>        Get workspace details")
+    print("  fabric-plugin:workspace-user-list <workspace>  List workspace users")
     print()
 
 

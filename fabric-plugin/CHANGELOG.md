@@ -16,7 +16,14 @@
 - New in-repo contributor guide `CLAUDE.md`
 - Setup command docs fixed to the `/fabric-plugin:setup:*` namespace
 
-### Bug Fixes
+### Bug Fixes (live test campaign on a real tenant)
+- Name resolver: freshly created items were invisible until the 5-min cache expired - the resolver now refetches once on a cache miss
+- schedule-create / schedule-update / schedule-toggle rewritten on the real Fabric scheduler API (`/jobs/Pipeline/schedules`); the old code targeted nonexistent endpoints with unix cron expressions (Fabric uses interval/daily/weekly configurations - new `--every/--daily/--weekly` options)
+- notebook-definition-update sent ipynb content declared as `.py` (always failed); now uses `format: ipynb`
+- notebook-clone never fetched the LRO result (silent failure); notebook-export and notebook-definition-get gave up on 202 instead of polling - all three now use the new shared `fabric_lro_result()` helper
+- notebook-import now returns the created notebook id and defaults missing `metadata.language_info.name` to python (Fabric refuses to run such notebooks)
+- semantic-model-refresh-history targeted a nonexistent Fabric endpoint; now uses the Power BI refreshes API like semantic-model-refresh
+- table-schema now explains the schema-enabled-lakehouse limitation and the SQL alternative instead of a bare "Table not found"
 - Fixed ~100 malformed or stale command references printed by skill scripts (`/fabric-plugin:\<domain>:<cmd>` → real skill names)
 - `resolve-name` and `table-query` SKILL.md invocations no longer depend on the current working directory
 - `warehouse-list-tables` now explains how to install pyodbc instead of failing silently

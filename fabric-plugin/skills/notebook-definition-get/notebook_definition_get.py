@@ -16,7 +16,7 @@ import base64
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '_shared'))
 
 from cli_args import SkillCLI
-from fabric_base import FABRIC_API_BASE, fabric_request, handle_http_error
+from fabric_base import FABRIC_API_BASE, fabric_request, fabric_lro_result, handle_http_error
 
 
 def display_definition(data, notebook_id):
@@ -62,7 +62,7 @@ def display_definition(data, notebook_id):
 
 def get_notebook_definition(workspace_id, notebook_id):
     """Get notebook definition in .ipynb format."""
-    url = f"{FABRIC_API_BASE}/workspaces/{workspace_id}/notebooks/{notebook_id}/getDefinition"
+    url = f"{FABRIC_API_BASE}/workspaces/{workspace_id}/notebooks/{notebook_id}/getDefinition?format=ipynb"
 
     try:
         response = fabric_request(url, method='POST', data={})
@@ -72,10 +72,11 @@ def get_notebook_definition(workspace_id, notebook_id):
             display_definition(data, notebook_id)
             return 0
         elif response.status == 202:
-            # Long-running operation
-            location = response.headers.get('Location')
-            print(f"[INFO] Definition retrieval started (LRO)")
-            print(f"Location: {location}")
+            print("[INFO] Definition retrieval started (long-running operation), waiting...")
+            data = fabric_lro_result(response)
+            if data is None:
+                return 2
+            display_definition(data, notebook_id)
             return 0
         else:
             print(f"[ERROR] Unexpected status: {response.status}")

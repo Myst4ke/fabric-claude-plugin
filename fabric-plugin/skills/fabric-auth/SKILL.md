@@ -5,7 +5,7 @@ description: Authenticate with Microsoft Fabric API using Entra ID OAuth 2.0 (se
 
 # Fabric Auth (infrastructure)
 
-**Do not invoke this skill directly** — it is infrastructure used by the other fabric-plugin skills. For interactive sign-in, use the `fabric-login` skill (`/fabric-plugin:\setup:login`).
+**Do not invoke this skill directly** — it is infrastructure used by the other fabric-plugin skills. For interactive sign-in, use the `fabric-login` skill (`/fabric-plugin:setup:login`).
 
 ## Implementation
 

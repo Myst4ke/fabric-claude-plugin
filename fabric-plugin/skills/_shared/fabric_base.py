@@ -261,6 +261,37 @@ def fabric_list(url, limit=None, item_key='value'):
 # Security (Warning-Only Mode)
 # =============================================================================
 
+def fabric_lro_result(response, timeout=600):
+    """Follow a 202 Accepted response to completion and return the operation
+    result JSON, or None on failure/timeout."""
+    location = response.headers.get('Location')
+    operation_id = response.headers.get('x-ms-operation-id')
+    if not operation_id and location:
+        operation_id = location.rstrip('/').split('/')[-1].split('?')[0]
+    try:
+        retry_after = int(float(response.headers.get('Retry-After') or 2))
+    except (TypeError, ValueError):
+        retry_after = 2
+    poll_url = location or f"{FABRIC_API_BASE}/operations/{operation_id}"
+    start = time.time()
+    while time.time() - start < timeout:
+        time.sleep(max(1, min(retry_after, 10)))
+        r = fabric_request(poll_url)
+        if r.status == 202:
+            continue
+        data = json.loads(r.read().decode('utf-8'))
+        status = data.get('status')
+        if status == 'Succeeded':
+            rr = fabric_request(f"{FABRIC_API_BASE}/operations/{operation_id}/result")
+            return json.loads(rr.read().decode('utf-8'))
+        if status in ('Failed', 'Cancelled'):
+            err = data.get('error', {})
+            print(f"[ERROR] Operation {status}: {err.get('message', 'Unknown error')}")
+            return None
+    print(f"[ERROR] Operation timed out after {timeout}s")
+    return None
+
+
 def check_security(workspace_id, operation):
     """
     Check security policy and print warning if operation is restricted.

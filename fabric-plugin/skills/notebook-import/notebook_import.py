@@ -43,6 +43,13 @@ def import_notebook(workspace_id, name, ipynb_file):
         if isinstance(cell.get('source'), str):
             cell['source'] = cell['source'].splitlines(keepends=True)
 
+    # Fabric refuses to RUN a notebook whose metadata.language_info.name is
+    # missing ("Not supported language"); default it to python
+    meta = notebook.setdefault('metadata', {})
+    if not meta.get('language_info', {}).get('name'):
+        meta.setdefault('language_info', {})['name'] = 'python'
+        print("[INFO] metadata.language_info.name missing - defaulted to 'python'")
+
     url = f"{FABRIC_API_BASE}/workspaces/{workspace_id}/notebooks"
 
     # Encode content as base64
@@ -123,6 +130,13 @@ def poll_operation(location, operation_id, retry_after, name):
                 # Try to get the notebook ID from response
                 result = data.get('result', {})
                 notebook_id = result.get('id', 'N/A')
+                if notebook_id == 'N/A' and operation_id:
+                    # The poll payload rarely carries the result - fetch it
+                    try:
+                        r = fabric_request(f"{FABRIC_API_BASE}/operations/{operation_id}/result")
+                        notebook_id = json.loads(r.read().decode('utf-8')).get('id', 'N/A')
+                    except Exception:
+                        pass
                 print(f"\n[SUCCESS] Notebook imported!")
                 print("="*60)
                 print(f"Name:        {name}")

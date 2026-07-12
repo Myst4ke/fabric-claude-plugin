@@ -9,7 +9,7 @@ Microsoft Fabric authentication using OAuth 2.0 delegated flow with PKCE securit
 
 ## When to Use
 
-- User invokes `/fabric-plugin:\setup:login`
+- User invokes `/fabric-plugin:setup:login`
 - Authentication required for Fabric API
 - User needs to sign in with Microsoft account
 

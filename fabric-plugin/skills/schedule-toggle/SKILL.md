@@ -6,7 +6,8 @@ description: Enable or disable a pipeline schedule
 # schedule-toggle Skill
 
 ## Purpose
-Enable or disable a pipeline schedule without deleting it (existing configuration is preserved).
+Flip (or force) the enabled state of a pipeline schedule. The schedule id is
+optional when the pipeline has exactly one schedule.
 
 ## Execution
 
@@ -19,27 +20,27 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/py.sh" "${CLAUDE_PLUGIN_ROOT}/skills/
 ## Usage
 
 ```
-schedule_toggle.py <workspace> <pipeline> <schedule_id> {true,false}
+schedule_toggle.py <workspace> <pipeline> [<schedule_id>] [--enable | --disable]
 ```
 
 ## Parameters
 - `<workspace>` (required): Workspace **name or GUID** (names are resolved automatically)
 - `<pipeline>` (required): Pipeline **name or GUID** (names are resolved automatically)
-- `<schedule_id>` (required): The schedule GUID
-- `<enabled>` (required): `true` to enable, `false` to disable
+- `<schedule_id>` (optional): Schedule ID; required only if the pipeline has several schedules
+- `--enable` / `--disable`: force the state instead of flipping it
 
 ## Examples
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/py.sh" "${CLAUDE_PLUGIN_ROOT}/skills/schedule-toggle/schedule_toggle.py" "My Workspace" "Daily ETL" c3d4e5f6-... false
-bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/py.sh" "${CLAUDE_PLUGIN_ROOT}/skills/schedule-toggle/schedule_toggle.py" a1b2c3d4-... b2c3d4e5-... c3d4e5f6-... true
+bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/py.sh" "${CLAUDE_PLUGIN_ROOT}/skills/schedule-toggle/schedule_toggle.py" "My Workspace" "Daily ETL"
+bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/py.sh" "${CLAUDE_PLUGIN_ROOT}/skills/schedule-toggle/schedule_toggle.py" "My Workspace" "Daily ETL" <schedule-id> --disable
 ```
 
 ## Returns
-- Success: Exit code 0, status confirmation (ENABLED/DISABLED)
+- Success: Exit code 0, new enabled state
 - Error: Exit code 1-3, error message
 
 ## Exit Codes
 - 0: Success
-- 1: Permanent error (usage error, not found, forbidden, no configuration to enable)
+- 1: Permanent error (usage error, not found, forbidden)
 - 2: Retryable error (rate limit, server error)
-- 3: Authentication error (run /fabric-plugin:\setup:login)
+- 3: Authentication error (run /fabric-plugin:setup:login)

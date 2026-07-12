@@ -16,12 +16,12 @@ import base64
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '_shared'))
 
 from cli_args import SkillCLI
-from fabric_base import FABRIC_API_BASE, fabric_request, handle_http_error
+from fabric_base import FABRIC_API_BASE, fabric_request, fabric_lro_result, handle_http_error
 
 
 def export_notebook(workspace_id, notebook_id, output_file):
     """Export notebook to .ipynb file."""
-    url = f"{FABRIC_API_BASE}/workspaces/{workspace_id}/notebooks/{notebook_id}/getDefinition"
+    url = f"{FABRIC_API_BASE}/workspaces/{workspace_id}/notebooks/{notebook_id}/getDefinition?format=ipynb"
 
     try:
         response = fabric_request(url, method='POST', data={})
@@ -30,12 +30,11 @@ def export_notebook(workspace_id, notebook_id, output_file):
             data = json.loads(response.read().decode('utf-8'))
             return save_definition(data, output_file, notebook_id)
         elif response.status == 202:
-            # Long-running operation - would need to poll
-            location = response.headers.get('Location')
-            print(f"[INFO] Export started as long-running operation")
-            print(f"Location: {location}")
-            print("[INFO] Please retry in a few moments.")
-            return 2
+            print("[INFO] Export started (long-running operation), waiting...")
+            data = fabric_lro_result(response)
+            if data is None:
+                return 2
+            return save_definition(data, output_file, notebook_id)
         else:
             print(f"[ERROR] Unexpected status: {response.status}")
             return 2

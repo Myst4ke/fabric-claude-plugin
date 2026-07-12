@@ -28,9 +28,7 @@ def update_notebook_definition(workspace_id, notebook_id, ipynb_file):
     # Read and validate the .ipynb file
     try:
         with open(ipynb_file, 'r', encoding='utf-8') as f:
-            notebook_content = f.read()
-        # Validate JSON
-        json.loads(notebook_content)
+            notebook = json.load(f)
     except FileNotFoundError:
         print(f"[ERROR] File not found: {ipynb_file}")
         return 1
@@ -38,16 +36,28 @@ def update_notebook_definition(workspace_id, notebook_id, ipynb_file):
         print(f"[ERROR] Invalid JSON in {ipynb_file}: {e}")
         return 1
 
+    # Same normalizations as notebook-import: Fabric rejects string cell
+    # sources and cannot run notebooks without metadata.language_info.name
+    for cell in notebook.get('cells', []):
+        if isinstance(cell.get('source'), str):
+            cell['source'] = cell['source'].splitlines(keepends=True)
+    meta = notebook.setdefault('metadata', {})
+    if not meta.get('language_info', {}).get('name'):
+        meta.setdefault('language_info', {})['name'] = 'python'
+        print("[INFO] metadata.language_info.name missing - defaulted to 'python'")
+
     url = f"{FABRIC_API_BASE}/workspaces/{workspace_id}/notebooks/{notebook_id}/updateDefinition"
 
-    # Encode content as base64
+    # Encode content as base64 (format must be ipynb, not the py default)
+    notebook_content = json.dumps(notebook, ensure_ascii=False)
     payload_base64 = base64.b64encode(notebook_content.encode('utf-8')).decode('utf-8')
 
     body = {
         "definition": {
+            "format": "ipynb",
             "parts": [
                 {
-                    "path": "notebook-content.py",
+                    "path": "notebook-content.ipynb",
                     "payload": payload_base64,
                     "payloadType": "InlineBase64"
                 }
