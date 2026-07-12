@@ -1,0 +1,21 @@
+# Local security policy (copy config/security.json.example and keep it private)
+config/security.json
+
+# Local Claude Code state
+.claude/
+
+# Generated analysis artifacts
+graphify-out/
+skills/graphify-out/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Env / secrets
+.env
+*.env
+
+# OS noise
+.DS_Store
+*.log

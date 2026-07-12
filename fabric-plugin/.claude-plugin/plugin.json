@@ -1,10 +1,9 @@
 {
   "name": "fabric-plugin",
-  "version": "0.1.0",
-  "description": "Claude Code plugin for interacting with Microsoft Fabric via REST API",
+  "version": "0.5.0",
+  "description": "Comprehensive Microsoft Fabric integration for Claude Code",
   "author": {
-    "name": "Florian POSEZ",
-    "email": ""
+    "name": "Myst4ke"
   },
   "homepage": "https://github.com/Myst4ke/fabric-claude-plugin",
   "repository": "https://github.com/Myst4ke/fabric-claude-plugin.git",
@@ -12,18 +11,21 @@
   "keywords": [
     "fabric",
     "microsoft",
-    "data",
-    "workspace",
+    "data-engineering",
+    "power-bi",
     "lakehouse",
-    "warehouse",
-    "notebook"
+    "notebook",
+    "pipeline",
+    "workspace",
+    "devops"
   ],
   "commands": "./commands",
   "agents": [
     "./agents/fabric-admin.md",
-    "./agents/bi-analyst.md",
+    "./agents/pipeline-engineer.md",
     "./agents/notebook-developer.md",
-    "./agents/pipeline-engineer.md"
+    "./agents/data-engineer.md",
+    "./agents/fabric-orchestrator.md"
   ],
   "skills": "./skills"
 }

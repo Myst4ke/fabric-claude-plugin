@@ -3,453 +3,332 @@ description: Interactive setup for Fabric API credentials
 argument-hint: [--validate]
 ---
 
-# /fabric:configure
+# /fabric-plugin:setup:configure
 
 ## Purpose
-Interactive command to set up Microsoft Fabric API authentication credentials. This command guides users through configuring their Azure/Entra ID service principal credentials and optionally validates the configuration.
+
+Interactive setup wizard for configuring Microsoft Fabric API credentials using Azure AD service principal authentication. This command guides you through entering your Azure AD tenant ID, client ID, and client secret, validates the format, tests the connection, and stores credentials for use in all Fabric operations.
 
 ## Arguments
-- `--validate`: Optional. Test the credentials immediately after configuration
+
+- `--validate` (optional): Test existing credentials without reconfiguring
 
 ## Prerequisites
-- Azure/Entra ID tenant with Fabric enabled
-- Service principal (app registration) created in Azure Portal
-- Service principal enabled in Fabric Admin Portal settings
+
+For service principal authentication, you need:
+- Azure AD app registration with client secret
+- Fabric API permissions granted
+- Service principal enabled in Fabric Admin Portal
+
+See `docs/AZURE_APP_SETUP.md` for detailed setup instructions.
 
 ## Instructions
 
-### 1. Display Welcome Message and Authentication Options
-Show a friendly introduction explaining both authentication methods:
-
-```
-🔧 Microsoft Fabric API Configuration
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Choose Your Authentication Method
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Option 1: Service Principal (this command)
-  • Best for: Automation, CI/CD, admin tasks
-  • Requires: Azure admin to create app registration
-  • Setup: Complex (Azure Portal + Fabric Admin)
-  • Access: Based on assigned permissions
-
-Option 2: Microsoft Account (recommended for most users)
-  • Best for: Individual developers, personal use
-  • Requires: Just your Microsoft account
-  • Setup: Simple (/fabric:login - opens browser)
-  • Access: Your actual Fabric permissions
-  • No admin access needed! ✨
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Do you want to continue with Service Principal setup? (y/n)
-Or switch to user authentication: /fabric:login
-```
-
-**Check user response:**
-```bash
-read -r response
-
-if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
-  echo ""
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "  Switching to User Authentication"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo ""
-  echo "Run this command to sign in with your Microsoft account:"
-  echo "  /fabric:login"
-  echo ""
-  echo "It will:"
-  echo "  • Open a browser window"
-  echo "  • Ask you to sign in"
-  echo "  • Work instantly - no Azure admin needed!"
-  echo ""
-  exit 0
-fi
-
-echo ""
-echo "Continuing with Service Principal setup..."
-echo ""
-echo "You'll need:"
-echo "  • Azure tenant ID"
-echo "  • Application (client) ID"
-echo "  • Client secret"
-echo ""
-echo "Don't have these? See setup guide at the end."
-echo ""
-```
-
-### 2. Check Existing Configuration
-Check if credentials are already configured:
+### 1. Input Validation
 
 ```bash
-if [ -n "$FABRIC_TENANT_ID" ] && [ -n "$FABRIC_CLIENT_ID" ] && [ -n "$FABRIC_CLIENT_SECRET" ]; then
-  echo ""
-  echo "⚠️ Credentials are already configured:"
-  echo "  Tenant ID: ${FABRIC_TENANT_ID:0:8}...${FABRIC_TENANT_ID: -4}"
-  echo "  Client ID: ${FABRIC_CLIENT_ID:0:8}...${FABRIC_CLIENT_ID: -4}"
-  echo ""
-  echo "Do you want to reconfigure? (y/n)"
-  read -r response
+validate_only=false
 
-  if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
-    echo "✅ Keeping existing configuration"
-    exit 0
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --validate)
+      validate_only=true
+      shift
+      ;;
+    *)
+      echo "❌ Unknown argument: $1"
+      echo "Usage: /fabric-plugin:setup:configure [--validate]"
+      exit 1
+      ;;
+  esac
+done
+
+echo "════════════════════════════════════════════════════════"
+echo "  Microsoft Fabric API Configuration"
+echo "════════════════════════════════════════════════════════"
+echo ""
+```
+
+### 2. Check Existing Configuration (Validate Mode)
+
+```bash
+if [ "$validate_only" = true ]; then
+  echo "Validating existing configuration..."
+  echo ""
+
+  # Check environment variables
+  if [ -z "$FABRIC_TENANT_ID" ]; then
+    echo "❌ FABRIC_TENANT_ID not set"
+    has_error=true
+  else
+    echo "✅ FABRIC_TENANT_ID: ${FABRIC_TENANT_ID:0:8}...${FABRIC_TENANT_ID: -8}"
   fi
+
+  if [ -z "$FABRIC_CLIENT_ID" ]; then
+    echo "❌ FABRIC_CLIENT_ID not set"
+    has_error=true
+  else
+    echo "✅ FABRIC_CLIENT_ID: ${FABRIC_CLIENT_ID:0:8}...${FABRIC_CLIENT_ID: -8}"
+  fi
+
+  if [ -z "$FABRIC_CLIENT_SECRET" ]; then
+    echo "❌ FABRIC_CLIENT_SECRET not set"
+    has_error=true
+  else
+    echo "✅ FABRIC_CLIENT_SECRET: (hidden for security)"
+  fi
+
+  if [ "$has_error" = true ]; then
+    echo ""
+    echo "Run without --validate to configure credentials"
+    exit 1
+  fi
+
+  echo ""
+  echo "✅ Configuration valid"
+  echo ""
+  echo "Testing connection..."
+  # Run test-connection command
+  /fabric-plugin:setup:test-connection
+  exit $?
 fi
 ```
 
-### 3. Collect Tenant ID
-Prompt for Azure tenant ID with validation:
+### 3. Display Setup Options
 
 ```bash
+echo "Choose authentication method:"
 echo ""
-echo "📋 Step 1/3: Azure Tenant ID"
-echo "Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+echo "1. Microsoft Account (Recommended for personal use)"
+echo "   - Easy browser-based login"
+echo "   - Uses your existing Fabric permissions"
+echo "   - No Azure AD setup required"
 echo ""
-echo "Where to find this:"
-echo "  1. Azure Portal → Azure Active Directory → Overview"
-echo "  2. Look for 'Tenant ID' or 'Directory ID'"
+echo "2. Service Principal (For automation/CI/CD)"
+echo "   - Requires Azure AD app registration"
+echo "   - More complex setup"
+echo "   - Better for production systems"
 echo ""
-echo "Enter your Tenant ID:"
-read -r tenant_id
 
-# Validate GUID format
-if ! [[ "$tenant_id" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
-  echo "❌ Invalid format. Tenant ID must be a valid GUID."
-  echo "Example: 12345678-1234-1234-1234-123456789abc"
-  exit 1
-fi
+read -p "Select option (1 or 2): " auth_option
 
-echo "✅ Tenant ID validated"
+case "$auth_option" in
+  1)
+    echo ""
+    echo "Redirecting to Microsoft Account login..."
+    echo ""
+    /fabric-plugin:setup:login
+    exit $?
+    ;;
+
+  2)
+    echo ""
+    echo "Service Principal Setup"
+    echo "═══════════════════════"
+    ;;
+
+  *)
+    echo "❌ Invalid option: $auth_option"
+    exit 1
+    ;;
+esac
 ```
 
-### 4. Collect Client ID
-Prompt for application (client) ID:
+### 4. Collect Credentials (Service Principal)
 
 ```bash
 echo ""
-echo "📋 Step 2/3: Application (Client) ID"
-echo "Format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+echo "You'll need these values from Azure Portal:"
+echo "  - Tenant ID (Azure AD > Properties)"
+echo "  - Client ID (App Registrations > Your App > Overview)"
+echo "  - Client Secret (App Registrations > Your App > Certificates & secrets)"
 echo ""
-echo "Where to find this:"
-echo "  1. Azure Portal → Azure Active Directory → App registrations"
-echo "  2. Select your application"
-echo "  3. Look for 'Application (client) ID' on Overview page"
+echo "See docs/AZURE_APP_SETUP.md for detailed instructions."
 echo ""
-echo "Enter your Client ID:"
-read -r client_id
 
-# Validate GUID format
-if ! [[ "$client_id" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
-  echo "❌ Invalid format. Client ID must be a valid GUID."
-  exit 1
-fi
+# Function to validate GUID format
+validate_guid() {
+  local value="$1"
+  if [[ "$value" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
 
-echo "✅ Client ID validated"
+# Collect Tenant ID
+while true; do
+  read -p "Enter Tenant ID: " tenant_id
+
+  if validate_guid "$tenant_id"; then
+    echo "✅ Tenant ID format valid"
+    break
+  else
+    echo "❌ Invalid format. Should be: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  fi
+done
+
+# Collect Client ID
+while true; do
+  read -p "Enter Client ID: " client_id
+
+  if validate_guid "$client_id"; then
+    echo "✅ Client ID format valid"
+    break
+  else
+    echo "❌ Invalid format. Should be: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+  fi
+done
+
+# Collect Client Secret
+while true; do
+  read -s -p "Enter Client Secret (hidden): " client_secret
+  echo ""
+
+  if [ -z "$client_secret" ]; then
+    echo "❌ Client secret cannot be empty"
+  else
+    echo "✅ Client secret received"
+    break
+  fi
+done
 ```
 
-### 5. Collect Client Secret
-Prompt for client secret with masked input:
+### 5. Store Credentials
 
 ```bash
 echo ""
-echo "📋 Step 3/3: Client Secret"
-echo ""
-echo "Where to find this:"
-echo "  1. Azure Portal → App registrations → Your app"
-echo "  2. Go to 'Certificates & secrets'"
-echo "  3. Create a 'New client secret' if needed"
-echo "  4. Copy the secret VALUE (not the ID)"
-echo ""
-echo "⚠️  Warning: The secret will not be displayed after creation"
-echo ""
-echo "Enter your Client Secret (input will be hidden):"
-read -s client_secret
-echo ""
+echo "Storing credentials..."
 
-# Validate not empty
-if [ -z "$client_secret" ]; then
-  echo "❌ Client secret cannot be empty"
-  exit 1
-fi
+# Export environment variables for current session
+export FABRIC_TENANT_ID="$tenant_id"
+export FABRIC_CLIENT_ID="$client_id"
+export FABRIC_CLIENT_SECRET="$client_secret"
+export FABRIC_AUTH_FLOW="service_principal"
 
-# Validate minimum length (typically 32+ characters)
-if [ ${#client_secret} -lt 20 ]; then
-  echo "❌ Client secret seems too short. Please verify you copied the full secret."
-  exit 1
-fi
-
-echo "✅ Client secret validated"
+echo "✅ Credentials set for current session"
+echo ""
+echo "⚠️  Note: These are only set for this session."
+echo "    To persist, add to your shell profile (.bashrc, .zshrc, etc.)"
+echo ""
 ```
 
-### 6. Save Configuration
-Save credentials to appropriate location based on OS:
+### 6. Test Credentials
 
 ```bash
+echo "Testing credentials..."
 echo ""
-echo "💾 Saving configuration..."
 
-# Determine shell config file
-if [ -f "$HOME/.zshrc" ]; then
-  config_file="$HOME/.zshrc"
-elif [ -f "$HOME/.bashrc" ]; then
-  config_file="$HOME/.bashrc"
-elif [ -f "$HOME/.bash_profile" ]; then
-  config_file="$HOME/.bash_profile"
+# Acquire token
+response=$(curl -s -X POST \
+  "https://login.microsoftonline.com/${FABRIC_TENANT_ID}/oauth2/v2.0/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=${FABRIC_CLIENT_ID}" \
+  -d "client_secret=${FABRIC_CLIENT_SECRET}" \
+  -d "scope=https://api.fabric.microsoft.com/.default")
+
+access_token=$(echo "$response" | bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/py.sh" -c "import json,sys; print(json.load(sys.stdin).get('access_token') or 'null')")
+
+if [ "$access_token" = "null" ] || [ -z "$access_token" ]; then
+  echo "❌ Authentication failed"
+  echo ""
+
+  error=$(echo "$response" | bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/py.sh" -c "import json,sys; print(json.load(sys.stdin).get('error') or 'Unknown')")
+  error_desc=$(echo "$response" | bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/py.sh" -c "import json,sys; print(json.load(sys.stdin).get('error_description') or 'No details')")
+
+  echo "Error: $error"
+  echo "Details: $error_desc"
+  echo ""
+  echo "Common issues:"
+  echo "  - Wrong client secret"
+  echo "  - Client secret expired"
+  echo "  - Missing API permissions"
+  echo "  - Service principal not enabled in Fabric"
+  echo ""
+  echo "See docs/AZURE_APP_SETUP.md for troubleshooting"
+  exit 1
+fi
+
+echo "✅ Token acquired successfully"
+
+# Test Fabric API
+echo "Testing Fabric API access..."
+
+api_response=$(curl -s -w "\n%{http_code}" -X GET \
+  "https://api.fabric.microsoft.com/v1/workspaces?\$top=1" \
+  -H "Authorization: Bearer $access_token")
+
+api_http_code=$(echo "$api_response" | tail -n1)
+
+if [ "$api_http_code" = "200" ]; then
+  echo "✅ Fabric API accessible"
+
+  workspace_count=$(echo "$api_response" | head -n-1 | bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/py.sh" -c "import json,sys; print(len(json.load(sys.stdin).get('value', [])))")
+  echo "   Available workspaces: $workspace_count"
+
 else
-  config_file="$HOME/.profile"
-fi
-
-# Check if variables already exist in file
-if grep -q "FABRIC_TENANT_ID" "$config_file"; then
+  echo "⚠️  Fabric API returned HTTP $api_http_code"
   echo ""
-  echo "⚠️ Configuration already exists in $config_file"
-  echo "Do you want to update it? (y/n)"
-  read -r response
-
-  if [ "$response" = "y" ] || [ "$response" = "Y" ]; then
-    # Remove old configuration
-    sed -i '/FABRIC_TENANT_ID/d' "$config_file"
-    sed -i '/FABRIC_CLIENT_ID/d' "$config_file"
-    sed -i '/FABRIC_CLIENT_SECRET/d' "$config_file"
-  fi
+  echo "This might mean:"
+  echo "  - Service principal not enabled in Fabric Admin Portal"
+  echo "  - Missing workspace permissions"
+  echo "  - Fabric license required"
+  echo ""
+  echo "See docs/AZURE_APP_SETUP.md for enabling service principal"
 fi
-
-# Append new configuration
-cat >> "$config_file" << EOF
-
-# Microsoft Fabric API Credentials (added by /fabric:configure on $(date +%Y-%m-%d))
-export FABRIC_TENANT_ID="$tenant_id"
-export FABRIC_CLIENT_ID="$client_id"
-export FABRIC_CLIENT_SECRET="$client_secret"
-EOF
-
-# Set in current session
-export FABRIC_TENANT_ID="$tenant_id"
-export FABRIC_CLIENT_ID="$client_id"
-export FABRIC_CLIENT_SECRET="$client_secret"
-
-echo "✅ Configuration saved to $config_file"
-echo "✅ Environment variables set for current session"
 ```
 
-### 7. Display Success Message
-Show completion message with next steps:
-
-```
-✅ Configuration Complete!
-
-Your Fabric API credentials have been configured successfully.
-
-Configuration saved to: ~/.zshrc
-Variables set:
-  ✓ FABRIC_TENANT_ID
-  ✓ FABRIC_CLIENT_ID
-  ✓ FABRIC_CLIENT_SECRET
-
-Next steps:
-  1. Restart your terminal or run: source ~/.zshrc
-  2. Test your connection: /fabric:test-connection
-  3. List your workspaces: /fabric:list-workspaces
-
-Important notes:
-  • Keep your client secret secure
-  • Never commit credentials to git
-  • Client secrets expire - check Azure Portal periodically
-```
-
-### 8. Optional Validation
-If `--validate` flag is provided, test the credentials immediately:
+### 7. Display Completion Message
 
 ```bash
-if [ "$validate" = "true" ]; then
-  echo ""
-  echo "🔍 Validating credentials..."
-  echo ""
-
-  # Call fabric:test-connection command
-  # This will be handled by invoking the test-connection command
-  echo "Running connection test..."
-
-  # The actual validation will be done by /fabric:test-connection
-fi
+echo ""
+echo "════════════════════════════════════════════════════════"
+echo "  ✅ Configuration Complete"
+echo "════════════════════════════════════════════════════════"
+echo ""
+echo "Service principal authentication is configured!"
+echo ""
+echo "Environment variables set:"
+echo "  FABRIC_TENANT_ID"
+echo "  FABRIC_CLIENT_ID"
+echo "  FABRIC_CLIENT_SECRET"
+echo "  FABRIC_AUTH_FLOW=service_principal"
+echo ""
+echo "To persist these settings, add to your shell profile:"
+echo ""
+echo "  export FABRIC_TENANT_ID=\"$tenant_id\""
+echo "  export FABRIC_CLIENT_ID=\"$client_id\""
+echo "  export FABRIC_CLIENT_SECRET=\"your-secret\""
+echo "  export FABRIC_AUTH_FLOW=\"service_principal\""
+echo ""
+echo "Try asking Claude to list your workspaces"
+echo "  (fabric-plugin:workspace-list skill)"
+echo ""
 ```
 
 ## Error Scenarios
 
-### Scenario 1: Invalid GUID Format
-```
-❌ Invalid format
-
-Tenant ID must be in GUID format:
-  xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-
-Example: 12345678-1234-1234-1234-123456789abc
-
-Please try again.
-```
-
-### Scenario 2: Empty Client Secret
-```
-❌ Client secret cannot be empty
-
-Please copy the full client secret value from Azure Portal:
-  1. Azure Portal → App registrations → Your app
-  2. Certificates & secrets → Client secrets
-  3. Copy the VALUE column (not Secret ID)
-
-The value should be 32+ characters long.
-```
-
-### Scenario 3: File Write Permission Error
-```
-❌ Permission denied
-
-Could not write to configuration file: ~/.zshrc
-
-Actions:
-  • Check file permissions: ls -l ~/.zshrc
-  • Try with sudo if appropriate
-  • Manually add to your shell config:
-
-    export FABRIC_TENANT_ID="{tenant_id}"
-    export FABRIC_CLIENT_ID="{client_id}"
-    export FABRIC_CLIENT_SECRET="{client_secret}"
-```
-
-## Setup Guide for New Users
-
-If user doesn't have service principal yet, display this comprehensive guide:
-
-```
-📘 Setting Up Service Principal for Fabric API
-
-Don't have credentials yet? Follow these steps:
-
-STEP 1: Create App Registration in Azure
-  1. Go to Azure Portal (portal.azure.com)
-  2. Navigate to Azure Active Directory
-  3. Click "App registrations" → "New registration"
-  4. Name: "Fabric API Access" (or your preferred name)
-  5. Supported account types: "Single tenant"
-  6. Click "Register"
-  7. Copy the "Application (client) ID" - you'll need this
-  8. Copy the "Directory (tenant) ID" - you'll need this
-
-STEP 2: Create Client Secret
-  1. In your app registration, go to "Certificates & secrets"
-  2. Click "New client secret"
-  3. Description: "Fabric plugin" (or your preferred name)
-  4. Expires: Choose duration (recommended: 12-24 months)
-  5. Click "Add"
-  6. IMMEDIATELY COPY the secret VALUE - it won't be shown again!
-
-STEP 3: Configure API Permissions
-  1. In your app registration, go to "API permissions"
-  2. Click "Add a permission"
-  3. Select "Power BI Service"
-  4. Choose "Delegated permissions" and select:
-     • Item.ReadWrite.All
-     • Workspace.ReadWrite.All
-  5. OR choose "Application permissions" for service principal:
-     • Tenant.Read.All
-     • Tenant.ReadWrite.All
-  6. Click "Add permissions"
-  7. Click "Grant admin consent" (requires admin)
-
-STEP 4: Enable Service Principal in Fabric
-  1. Go to Fabric Admin Portal (app.fabric.microsoft.com)
-  2. Click Settings (gear icon) → Admin portal
-  3. Go to "Tenant settings"
-  4. Find "Service principals can use Fabric APIs"
-  5. Enable the setting
-  6. Add your service principal to the allowed list:
-     • Security group: Create a group in Azure AD, add the SP
-     • OR: Allow for entire organization (less secure)
-  7. Click "Apply"
-  8. Wait 15 minutes for changes to propagate
-
-STEP 5: Add Service Principal to Workspaces
-  For each workspace you want to access:
-  1. Open the workspace in Fabric
-  2. Click workspace Settings → Manage access
-  3. Add your service principal (search by name)
-  4. Assign role: Admin, Member, or Contributor
-  5. Click "Add"
-
-STEP 6: Run This Configuration Command
-  Now you can run /fabric:configure with your credentials!
-
-Troubleshooting:
-  • "Unauthorized" errors: Check service principal is enabled in Fabric
-  • "Forbidden" errors: Add service principal to workspace
-  • "Invalid client": Verify client ID and secret are correct
-
-Documentation:
-  • Fabric API Authentication:
-    https://learn.microsoft.com/en-us/rest/api/fabric/articles/get-started/fabric-api-quickstart
-  • Service Principal Setup:
-    https://learn.microsoft.com/en-us/power-bi/developer/embedded/embed-service-principal
-```
-
-## Related Commands
-- `/fabric:test-connection` - Test configured credentials
-- `/fabric:help` - Get help with other commands
+- **Invalid GUID format**: Re-prompt for correct format
+- **Empty client secret**: Re-prompt
+- **Authentication fails**: Show error and troubleshooting steps
+- **API access fails**: Explain potential causes (permissions, service principal not enabled)
+- **Network error**: Suggest checking connection
 
 ## Example Usage
 
-### Basic Configuration
-```
-/fabric:configure
+```bash
+# Interactive setup
+/fabric-plugin:setup:configure
 
-🔧 Microsoft Fabric API Configuration
-...
-
-📋 Step 1/3: Azure Tenant ID
-Enter your Tenant ID: 12345678-1234-1234-1234-123456789abc
-✅ Tenant ID validated
-
-📋 Step 2/3: Application (Client) ID
-Enter your Client ID: 87654321-4321-4321-4321-cba987654321
-✅ Client ID validated
-
-📋 Step 3/3: Client Secret
-Enter your Client Secret: ****************************************
-✅ Client secret validated
-
-💾 Saving configuration...
-✅ Configuration saved to ~/.zshrc
-✅ Environment variables set for current session
-
-✅ Configuration Complete!
-...
+# Validate existing credentials
+/fabric-plugin:setup:configure --validate
 ```
 
-### Configuration with Validation
-```
-/fabric:configure --validate
+## Related Commands
 
-... [configuration steps] ...
-
-✅ Configuration Complete!
-
-🔍 Validating credentials...
-
-Testing connection to Microsoft Fabric API...
-✅ Connection successful!
-✅ Authentication working correctly
-
-You're all set! Try: /fabric:list-workspaces
-```
-
-## Testing Checklist
-- [ ] Valid credentials → Saved successfully to shell config
-- [ ] Invalid tenant ID format → Clear error message
-- [ ] Invalid client ID format → Clear error message
-- [ ] Empty client secret → Error with instructions
-- [ ] Existing configuration → Prompt to overwrite
-- [ ] --validate flag → Runs connection test after setup
-- [ ] File permission error → Fallback to manual instructions
-- [ ] Setup guide displayed for new users
+- `/fabric-plugin:setup:login` - Easier alternative (Microsoft account)
+- `/fabric-plugin:setup:test-connection` - Test after configuration
+- `/fabric-plugin:setup:logout` - Clear credentials
+- `/fabric-plugin:setup:help` - Show help information

@@ -1,0 +1,13 @@
+# The plugin core is stdlib-only: no packages are required for most skills.
+# Install these extras only for the skills that need them.
+
+# SQL Analytics Endpoint skills: lakehouse-sql-query, warehouse-query,
+# warehouse-list-tables, table-query
+# (also requires the Microsoft ODBC Driver 17 or 18 for SQL Server:
+#  https://learn.microsoft.com/en-us/sql/connect/odbc/download-odbc-driver-for-sql-server)
+pyodbc>=5.0
+
+# Delta table reads: table-read
+deltalake>=0.15.0
+pandas>=2.0.0
+pyarrow>=14.0.0

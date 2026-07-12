@@ -1,8 +1,7 @@
 {
-  "name": "fabric-marketplace",
+  "name": "fabric-toolbox",
   "owner": {
-    "name": "Florian POSEZ",
-    "email": ""
+    "name": "Myst4ke"
   },
   "metadata": {
     "version": "1.0.0",
@@ -13,16 +12,15 @@
     {
       "name": "fabric-plugin",
       "source": "./fabric-plugin",
-      "version": "0.1.0",
-      "description": "Core plugin for interacting with Microsoft Fabric via REST API",
+      "version": "0.5.0",
+      "description": "Comprehensive Microsoft Fabric integration for Claude Code: 112 skills and 5 agents covering workspaces, lakehouses, notebooks, pipelines, warehouses, KQL, ML and more via the Fabric REST API",
       "author": {
-        "name": "Florian POSEZ",
-        "email": ""
+        "name": "Myst4ke"
       },
       "homepage": "https://github.com/Myst4ke/fabric-claude-plugin",
       "repository": "https://github.com/Myst4ke/fabric-claude-plugin.git",
       "license": "MIT",
-      "keywords": ["fabric", "microsoft", "data", "workspace", "lakehouse", "warehouse", "notebook"]
+      "keywords": ["fabric", "microsoft", "data-engineering", "power-bi", "lakehouse", "warehouse", "notebook", "pipeline", "workspace"]
     }
   ]
 }

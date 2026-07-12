@@ -3,375 +3,182 @@ description: Sign out and clear Fabric API authentication
 argument-hint: [--all]
 ---
 
-# /fabric:logout
+# /fabric-plugin:setup:logout
 
 ## Purpose
-Sign out from Microsoft Fabric API by clearing stored authentication tokens. This command removes cached tokens and optionally clears service principal credentials.
+
+Sign out from Microsoft Fabric API by removing all cached authentication credentials. This includes access tokens, refresh tokens, and any cached authentication data. After logout, you'll need to re-authenticate with `/fabric-plugin:setup:login` or `/fabric-plugin:setup:configure`.
 
 ## Arguments
-- `--all`: Optional. Also clear service principal environment variables (requires shell restart)
+
+- `--all` (optional): Clear all authentication data including environment variables
 
 ## Prerequisites
-None (can be run anytime)
+
+None - works even if not currently authenticated
 
 ## Instructions
 
-### 1. Display Current Authentication Status
+### 1. Input Validation
 
 ```bash
-echo "🔓 Microsoft Fabric - Sign Out"
-echo ""
+clear_env=false
 
-AUTH_TYPE="${FABRIC_AUTH_TYPE:-service_principal}"
-TOKEN_CACHE="$HOME/.fabric/token_cache.json"
-SP_TOKEN_CACHE="/tmp/fabric_token_cache_sp.json"
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --all)
+      clear_env=true
+      shift
+      ;;
+    *)
+      echo "❌ Unknown argument: $1"
+      echo "Usage: /fabric-plugin:setup:logout [--all]"
+      exit 1
+      ;;
+  esac
+done
+```
 
-# Check what's currently authenticated
-if [ "$AUTH_TYPE" = "delegated" ]; then
-  if [ -f "$TOKEN_CACHE" ]; then
-    EXPIRES_AT=$(jq -r '.expires_at' "$TOKEN_CACHE" 2>/dev/null)
-    if [ -n "$EXPIRES_AT" ] && [ "$EXPIRES_AT" != "null" ]; then
-      echo "Current authentication:"
-      echo "  • Type: Delegated (user account)"
-      echo "  • Token expires: $(date -d @$EXPIRES_AT '+%Y-%m-%d %H:%M:%S' 2>/dev/null || date -r $EXPIRES_AT '+%Y-%m-%d %H:%M:%S' 2>/dev/null || echo 'Unknown')"
-      echo "  • Cache location: ~/.fabric/token_cache.json"
-    fi
-  else
-    echo "ℹ️  No active user authentication found"
-  fi
-elif [ "$AUTH_TYPE" = "service_principal" ]; then
-  if [ -n "$FABRIC_TENANT_ID" ] && [ -n "$FABRIC_CLIENT_ID" ]; then
-    echo "Current authentication:"
-    echo "  • Type: Service Principal"
-    echo "  • Tenant ID: ${FABRIC_TENANT_ID:0:8}...${FABRIC_TENANT_ID: -4}"
-    echo "  • Client ID: ${FABRIC_CLIENT_ID:0:8}...${FABRIC_CLIENT_ID: -4}"
-    if [ -f "$SP_TOKEN_CACHE" ]; then
-      echo "  • Cached token: Yes"
-    fi
-  else
-    echo "ℹ️  No active service principal authentication found"
-  fi
-fi
+### 2. Determine Cache Locations
 
+```bash
+# Plugin cache directory (matches skills/_shared/token_manager.py)
+CACHE_DIR="${FABRIC_PLUGIN_CACHE_DIR:-$HOME/.fabric-plugin}"
+# Legacy location used by plugin versions < 0.5.0
+LEGACY_CACHE_DIR="${TEMP:-/tmp}"
+
+echo "Clearing cached credentials..."
 echo ""
 ```
 
-### 2. Confirm Sign Out
+### 3. Clear Cached Tokens
 
 ```bash
-if [ "$all_flag" = "true" ]; then
-  echo "⚠️  Warning: --all flag will clear ALL authentication"
-  echo ""
-  echo "This will:"
-  echo "  • Clear delegated user tokens"
-  echo "  • Clear service principal token cache"
-  echo "  • Remove FABRIC_* environment variables from shell config"
-  echo ""
-  echo "Are you sure you want to proceed? (y/n)"
-else
-  echo "This will clear your current authentication."
-  echo ""
-  echo "Continue? (y/n)"
-fi
+# Find and remove all token files
+token_files_removed=0
 
-read -r response
+# Access tokens (various patterns)
+for pattern in \
+  "${CACHE_DIR}/fabric-plugin-token-*.json" \
+  "${LEGACY_CACHE_DIR}/fabric-plugin-token-*.json"; do
 
-if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
-  echo "❌ Sign out canceled"
-  exit 0
-fi
-
-echo ""
-```
-
-### 3. Clear Delegated User Tokens
-
-```bash
-if [ -f "$TOKEN_CACHE" ]; then
-  echo "🗑️  Clearing user authentication tokens..."
-
-  # Remove token cache
-  rm -f "$TOKEN_CACHE"
-
-  if [ ! -f "$TOKEN_CACHE" ]; then
-    echo "✅ User tokens cleared"
-  else
-    echo "❌ Failed to clear user tokens (permission denied?)"
-  fi
-else
-  echo "ℹ️  No user tokens to clear"
-fi
-```
-
-### 4. Clear Service Principal Token Cache
-
-```bash
-if [ -f "$SP_TOKEN_CACHE" ]; then
-  echo "🗑️  Clearing service principal token cache..."
-
-  rm -f "$SP_TOKEN_CACHE"
-
-  if [ ! -f "$SP_TOKEN_CACHE" ]; then
-    echo "✅ Service principal cache cleared"
-  else
-    echo "❌ Failed to clear cache (permission denied?)"
-  fi
-fi
-
-# Also check Windows temp location
-if [ -f "%TEMP%\\fabric_token_cache_sp.json" ]; then
-  rm -f "%TEMP%\\fabric_token_cache_sp.json"
-fi
-```
-
-### 5. Clear Environment Variables (if --all flag)
-
-```bash
-if [ "$all_flag" = "true" ]; then
-  echo ""
-  echo "🗑️  Clearing environment variables..."
-
-  # Unset for current session
-  unset FABRIC_TENANT_ID
-  unset FABRIC_CLIENT_ID
-  unset FABRIC_CLIENT_SECRET
-  unset FABRIC_AUTH_TYPE
-
-  echo "✅ Environment variables unset for current session"
-
-  # Find and update shell config file
-  config_files=(
-    "$HOME/.zshrc"
-    "$HOME/.bashrc"
-    "$HOME/.bash_profile"
-    "$HOME/.profile"
-  )
-
-  for config_file in "${config_files[@]}"; do
-    if [ -f "$config_file" ]; then
-      # Check if FABRIC variables exist in file
-      if grep -q "FABRIC_TENANT_ID\|FABRIC_CLIENT_ID\|FABRIC_CLIENT_SECRET\|FABRIC_AUTH_TYPE" "$config_file"; then
-        echo ""
-        echo "Found Fabric credentials in: $config_file"
-        echo "Do you want to remove them? (y/n)"
-        read -r remove_response
-
-        if [ "$remove_response" = "y" ] || [ "$remove_response" = "Y" ]; then
-          # Create backup
-          cp "$config_file" "${config_file}.backup.$(date +%Y%m%d_%H%M%S)"
-          echo "✅ Backup created: ${config_file}.backup.$(date +%Y%m%d_%H%M%S)"
-
-          # Remove FABRIC lines
-          sed -i.tmp '/FABRIC_TENANT_ID/d' "$config_file"
-          sed -i.tmp '/FABRIC_CLIENT_ID/d' "$config_file"
-          sed -i.tmp '/FABRIC_CLIENT_SECRET/d' "$config_file"
-          sed -i.tmp '/FABRIC_AUTH_TYPE/d' "$config_file"
-          sed -i.tmp '/# Microsoft Fabric API Credentials/d' "$config_file"
-          rm -f "${config_file}.tmp"
-
-          echo "✅ Credentials removed from: $config_file"
-          echo "   (Backup saved in case you need to restore)"
-        fi
-      fi
+  for file in $pattern; do
+    if [ -f "$file" ]; then
+      rm -f "$file"
+      echo "✅ Removed: $(basename "$file")"
+      token_files_removed=$((token_files_removed + 1))
     fi
   done
+done
 
+# Refresh tokens
+for file in \
+  "${CACHE_DIR}/fabric-plugin-refresh-token.json" \
+  "${LEGACY_CACHE_DIR}/fabric-plugin-refresh-token.json"; do
+
+  if [ -f "$file" ]; then
+    rm -f "$file"
+    echo "✅ Removed: $(basename "$file")"
+    token_files_removed=$((token_files_removed + 1))
+  fi
+done
+
+# PKCE temporary files
+for file in \
+  "${CACHE_DIR}/fabric-auth-code.txt" \
+  "${LEGACY_CACHE_DIR}/fabric-auth-code.txt"; do
+
+  if [ -f "$file" ]; then
+    rm -f "$file"
+    token_files_removed=$((token_files_removed + 1))
+  fi
+done
+
+if [ $token_files_removed -eq 0 ]; then
+  echo "ℹ️  No cached credentials found (already logged out)"
+else
   echo ""
-  echo "⚠️  Important: Restart your terminal for changes to take effect"
-  echo "   Or run: source ~/.zshrc (or your shell config file)"
+  echo "✅ Cleared $token_files_removed credential file(s)"
 fi
 ```
 
-### 6. Display Success Message
+### 4. Clear Environment Variables (if --all flag)
+
+```bash
+if [ "$clear_env" = true ]; then
+  echo ""
+  echo "Clearing environment variables..."
+
+  # Unset Fabric credentials
+  if [ -n "$FABRIC_TENANT_ID" ]; then
+    unset FABRIC_TENANT_ID
+    echo "✅ Cleared: FABRIC_TENANT_ID"
+  fi
+
+  if [ -n "$FABRIC_CLIENT_ID" ]; then
+    unset FABRIC_CLIENT_ID
+    echo "✅ Cleared: FABRIC_CLIENT_ID"
+  fi
+
+  if [ -n "$FABRIC_CLIENT_SECRET" ]; then
+    unset FABRIC_CLIENT_SECRET
+    echo "✅ Cleared: FABRIC_CLIENT_SECRET"
+  fi
+
+  if [ -n "$FABRIC_AUTH_FLOW" ]; then
+    unset FABRIC_AUTH_FLOW
+    echo "✅ Cleared: FABRIC_AUTH_FLOW"
+  fi
+
+  echo ""
+  echo "⚠️  Note: Environment variables are only cleared for this session."
+  echo "    If they're set in your .bashrc or profile, they'll reload on next session."
+fi
+```
+
+### 5. Display Completion Message
 
 ```bash
 echo ""
-echo "✅ Sign Out Complete"
+echo "════════════════════════════════════════════════════════"
+echo "  ✅ Logout Complete"
+echo "════════════════════════════════════════════════════════"
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Successfully signed out from Microsoft Fabric"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-
-if [ "$all_flag" = "true" ]; then
-  echo "All authentication cleared:"
-  echo "  ✓ User tokens removed"
-  echo "  ✓ Service principal cache cleared"
-  echo "  ✓ Environment variables unset"
-  echo ""
-  echo "To authenticate again:"
-  echo "  • User authentication: /fabric\\:login"
-  echo "  • Service principal: /fabric\\:configure"
-else
-  echo "Current session authentication cleared:"
-  echo "  ✓ Tokens removed"
-  echo "  ✓ Cache cleared"
-  echo ""
-  echo "To sign in again:"
-  if [ "$AUTH_TYPE" = "delegated" ]; then
-    echo "  • /fabric\\:login (user account)"
-    echo "  • /fabric\\:configure (service principal)"
-  else
-    echo "  • /fabric\\:configure (service principal)"
-    echo "  • /fabric\\:login (user account)"
-  fi
+echo "What was cleared:"
+if [ $token_files_removed -gt 0 ]; then
+  echo "  ✓ Cached access tokens"
+  echo "  ✓ Cached refresh tokens"
+  echo "  ✓ Temporary authentication files"
 fi
 
+if [ "$clear_env" = true ]; then
+  echo "  ✓ Environment variables (this session only)"
+fi
+
+echo ""
+echo "To authenticate again:"
+echo "  /fabric-plugin:setup:login          (for Microsoft account)"
+echo "  /fabric-plugin:setup:configure      (for service principal)"
 echo ""
 ```
 
 ## Error Scenarios
 
-### Scenario 1: Permission Denied
-```
-❌ Failed to clear tokens
-
-Permission denied when accessing:
-  ~/.fabric/token_cache.json
-
-Actions:
-  • Check file permissions: ls -l ~/.fabric/token_cache.json
-  • Try with elevated permissions if appropriate
-  • Manually remove: rm ~/.fabric/token_cache.json
-```
-
-### Scenario 2: File Not Found (Already Signed Out)
-```
-ℹ️  No active authentication found
-
-You are already signed out.
-
-To sign in:
-  • User account: /fabric:login
-  • Service principal: /fabric:configure
-```
-
-### Scenario 3: Backup Failed
-```
-⚠️  Could not create backup of shell config
-
-Proceeding without backup may cause data loss.
-
-Do you want to continue anyway? (y/n)
-```
-
-## Testing Checklist
-- [ ] Clears delegated user tokens from ~/.fabric/token_cache.json
-- [ ] Clears service principal cache from /tmp
-- [ ] With --all flag, removes environment variables from shell config
-- [ ] Creates backup before modifying shell config
-- [ ] Shows clear success message
-- [ ] Handles case when no authentication exists
-- [ ] Works on Windows, Mac, and Linux
-- [ ] Prompts for confirmation before clearing
-- [ ] With --all, warns about clearing everything
-
-## Related Commands
-- `/fabric:login` - Sign in with Microsoft account
-- `/fabric:configure` - Set up service principal authentication
-- `/fabric:test-connection` - Test authentication status
+This command has no error scenarios - it always succeeds even if no credentials exist.
 
 ## Example Usage
 
-### Basic Sign Out (Delegated Auth)
-```
-$ /fabric:logout
+```bash
+# Basic logout (clear cached tokens)
+/fabric-plugin:setup:logout
 
-🔓 Microsoft Fabric - Sign Out
-
-Current authentication:
-  • Type: Delegated (user account)
-  • Token expires: 2025-01-18 15:30:00
-  • Cache location: ~/.fabric/token_cache.json
-
-This will clear your current authentication.
-
-Continue? (y/n) y
-
-🗑️  Clearing user authentication tokens...
-✅ User tokens cleared
-
-✅ Sign Out Complete
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Successfully signed out from Microsoft Fabric
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Current session authentication cleared:
-  ✓ Tokens removed
-  ✓ Cache cleared
-
-To sign in again:
-  • /fabric\:login (user account)
-  • /fabric\:configure (service principal)
+# Full logout (clear tokens and environment variables)
+/fabric-plugin:setup:logout --all
 ```
 
-### Sign Out with --all Flag
-```
-$ /fabric:logout --all
+## Related Commands
 
-🔓 Microsoft Fabric - Sign Out
-
-Current authentication:
-  • Type: Service Principal
-  • Tenant ID: 12345678...9abc
-  • Client ID: 87654321...4321
-  • Cached token: Yes
-
-⚠️  Warning: --all flag will clear ALL authentication
-
-This will:
-  • Clear delegated user tokens
-  • Clear service principal token cache
-  • Remove FABRIC_* environment variables from shell config
-
-Are you sure you want to proceed? (y/n) y
-
-🗑️  Clearing user authentication tokens...
-ℹ️  No user tokens to clear
-
-🗑️  Clearing service principal token cache...
-✅ Service principal cache cleared
-
-🗑️  Clearing environment variables...
-✅ Environment variables unset for current session
-
-Found Fabric credentials in: /home/user/.zshrc
-Do you want to remove them? (y/n) y
-✅ Backup created: /home/user/.zshrc.backup.20250118_143000
-✅ Credentials removed from: /home/user/.zshrc
-   (Backup saved in case you need to restore)
-
-⚠️  Important: Restart your terminal for changes to take effect
-   Or run: source ~/.zshrc (or your shell config file)
-
-✅ Sign Out Complete
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Successfully signed out from Microsoft Fabric
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-All authentication cleared:
-  ✓ User tokens removed
-  ✓ Service principal cache cleared
-  ✓ Environment variables unset
-
-To authenticate again:
-  • User authentication: /fabric\:login
-  • Service principal: /fabric\:configure
-```
-
-### Already Signed Out
-```
-$ /fabric:logout
-
-🔓 Microsoft Fabric - Sign Out
-
-ℹ️  No active authentication found
-
-You are already signed out.
-
-To sign in:
-  • User account: /fabric:login
-  • Service principal: /fabric:configure
-```
+- `/fabric-plugin:setup:login` - Sign in with Microsoft account
+- `/fabric-plugin:setup:configure` - Configure service principal credentials
+- `/fabric-plugin:setup:test-connection` - Test authentication after re-login

@@ -208,3 +208,8 @@ __marimo__/
 
 # Claude Code local settings
 .claude/
+
+# Fabric plugin local files
+fabric-plugin/config/security.json
+graphify-out/
+

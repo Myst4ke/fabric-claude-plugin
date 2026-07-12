@@ -3,475 +3,307 @@ description: Display comprehensive help for Fabric plugin commands
 argument-hint: [command-name]
 ---
 
-# /fabric:help
+# /fabric-plugin:setup:help
 
 ## Purpose
-Display comprehensive help documentation for the Microsoft Fabric plugin. Shows available commands, usage examples, and guides users to appropriate documentation based on their needs.
+
+Display comprehensive help information for the Microsoft Fabric plugin, including available commands, setup instructions, and troubleshooting guidance. Optionally show detailed help for a specific command.
 
 ## Arguments
-- `command-name`: Optional. Show detailed help for a specific command (e.g., `/fabric:help list-workspaces`)
+
+- `command-name` (optional): Show detailed help for a specific command
 
 ## Prerequisites
-None - this command is always available
+
+None - this command works without any configuration
 
 ## Instructions
 
-### 1. Check for Specific Command Help
-If user provides a command name argument, show detailed help for that command:
+### 1. Input Validation
 
 ```bash
-if [ -n "$1" ]; then
-  command_name=$1
+command_name="${1:-}"
 
-  # Display command-specific help
-  case "$command_name" in
-    "configure")
-      echo "See: src/commands/setup/configure.md"
-      # Show the description and usage from that command file
-      ;;
-    "test-connection")
-      echo "See: src/commands/setup/test-connection.md"
-      ;;
-    "list-workspaces")
-      echo "See: src/commands/workspace/list-workspaces.md"
-      ;;
-    *)
-      echo "❌ Unknown command: $command_name"
-      echo "Run /fabric:help to see all available commands"
-      exit 1
-      ;;
-  esac
-  exit 0
+# If specific command requested, validate it exists
+if [ -n "$command_name" ]; then
+  # Will show help for that command if available
+  show_specific_help=true
+else
+  show_specific_help=false
 fi
 ```
 
-### 2. Display Main Help Screen
-Show comprehensive overview of the plugin:
+### 2. Display General Help
 
-```
-╔═══════════════════════════════════════════════════════════════════╗
-║                                                                   ║
-║    Microsoft Fabric Plugin for Claude Code                       ║
-║    Version 0.1.0                                                  ║
-║                                                                   ║
-╚═══════════════════════════════════════════════════════════════════╝
+If no specific command requested, show overview:
 
-Manage Microsoft Fabric workspaces, items, and resources directly from
-Claude Code. This plugin provides access to 197+ Fabric API operations.
+```bash
+if [ "$show_specific_help" = false ]; then
+  cat <<'EOF'
+════════════════════════════════════════════════════════
+  Microsoft Fabric Plugin for Claude Code
+════════════════════════════════════════════════════════
 
-═══════════════════════════════════════════════════════════════════
+Comprehensive integration with Microsoft Fabric REST API
 
-QUICK START
+## 🚀 Quick Start
 
-  1. Configure credentials:
-     /fabric:configure
+1. Authenticate with your Microsoft account:
+   /fabric-plugin:setup:login
 
-  2. Test your setup:
-     /fabric:test-connection
+2. Test your connection:
+   /fabric-plugin:setup:test-connection
 
-  3. List your workspaces:
-     /fabric:list-workspaces
+3. List your workspaces:
+   Ask Claude: "list my Fabric workspaces"
+   (fabric-plugin:workspace-list skill)
 
-═══════════════════════════════════════════════════════════════════
+## 📚 Available Commands & Skills
 
-SETUP COMMANDS
+### Setup Commands
+  /fabric-plugin:setup:configure          Configure API credentials
+  /fabric-plugin:setup:login               Sign in with Microsoft account
+  /fabric-plugin:setup:logout              Sign out and clear credentials
+  /fabric-plugin:setup:test-connection     Test API connectivity
+  /fabric-plugin:setup:help                Show this help message
 
-  /fabric:configure [--validate]
-    Set up Fabric API credentials interactively
+All other operations are exposed as skills — just ask Claude in
+natural language and the right skill is invoked automatically.
 
-  /fabric:test-connection [--verbose]
-    Test API connectivity and authentication
+### Workspace Management (skills)
+  fabric-plugin:workspace-list            List all workspaces
+  fabric-plugin:workspace-get             Get workspace details
+  fabric-plugin:workspace-create          Create new workspace
+  fabric-plugin:workspace-delete          Delete workspace
+  fabric-plugin:workspace-user-list       List workspace users
+  fabric-plugin:workspace-user-add        Add user to workspace
+  fabric-plugin:workspace-user-remove     Remove user from workspace
 
-  /fabric:help [command-name]
-    Show this help or help for a specific command
+### Data Pipelines (skills)
+  fabric-plugin:pipeline-list             List pipelines
+  fabric-plugin:pipeline-run              Execute pipeline
+  fabric-plugin:pipeline-history          View execution history
 
-═══════════════════════════════════════════════════════════════════
+### Notebooks (skills)
+  fabric-plugin:notebook-list             List notebooks
+  fabric-plugin:notebook-run              Execute notebook
 
-WORKSPACE COMMANDS
+### Lakehouses (skills)
+  fabric-plugin:lakehouse-list            List lakehouses
+  fabric-plugin:lakehouse-sql-query       Run SQL query
 
-  /fabric:list-workspaces [--role <role>]
-    List all accessible workspaces
-    Options: --role Admin|Member|Contributor|Viewer
+## 🔑 Authentication
 
-  /fabric:get-workspace <workspace-id>
-    Get detailed information about a workspace
+Two methods available:
 
-  /fabric:create-workspace <name> <capacity-id>
-    Create a new workspace
+1. **Microsoft Account (Recommended)**
+   - Interactive browser login
+   - Uses your existing Fabric permissions
+   - Easy setup: /fabric-plugin:setup:login
 
-  /fabric:delete-workspace <workspace-id>
-    Delete a workspace (requires Admin role)
+2. **Service Principal**
+   - For automation and CI/CD
+   - Requires Azure AD app registration
+   - Setup: /fabric-plugin:setup:configure
 
-  /fabric:assign-capacity <workspace-id> <capacity-id>
-    Assign a workspace to a capacity
+## 📖 Documentation
 
-═══════════════════════════════════════════════════════════════════
+- Azure app setup guide: docs/AZURE_APP_SETUP.md
+- Full docs: README.md and the docs/ directory
 
-ITEM COMMANDS
+## 🆘 Troubleshooting
 
-  Coming in Phase 2-10:
-  • Lakehouse operations
-  • Notebook management
-  • Data pipeline operations
-  • Semantic model operations
-  • Report management
-  • And 180+ more operations...
+**Authentication failed?**
+  → Run: /fabric-plugin:setup:login
 
-═══════════════════════════════════════════════════════════════════
+**Permission denied?**
+  → Check workspace role: ask Claude to list workspace users
+    (fabric-plugin:workspace-user-list skill)
 
-AUTHENTICATION
+**Connection issues?**
+  → Test connection: /fabric-plugin:setup:test-connection
 
-  This plugin uses OAuth 2.0 client credentials flow via Microsoft
-  Entra ID (formerly Azure AD).
+**Need help with a command?**
+  → /fabric-plugin:setup:help <command-name>
 
-  Required environment variables:
-    FABRIC_TENANT_ID      - Your Azure tenant ID
-    FABRIC_CLIENT_ID      - Application (client) ID
-    FABRIC_CLIENT_SECRET  - Client secret value
+## 🔗 Resources
 
-  Setup guide:
-    Run /fabric:configure for step-by-step setup instructions
+- Microsoft Fabric Docs: https://learn.microsoft.com/fabric/
+- API Reference: https://learn.microsoft.com/rest/api/fabric/
+- Claude Code Docs: https://code.claude.com/docs
 
-═══════════════════════════════════════════════════════════════════
+════════════════════════════════════════════════════════
 
-COMMON OPERATIONS
+For detailed help on a specific command:
+  /fabric-plugin:setup:help <command-name>
 
-  List workspaces:
-    /fabric:list-workspaces
+Example: /fabric-plugin:setup:help login
 
-  Get workspace details:
-    /fabric:get-workspace abc-123-def-456
-
-  Create a lakehouse:
-    /fabric:create-lakehouse <workspace-id> <name>
-
-  Test connection:
-    /fabric:test-connection --verbose
-
-═══════════════════════════════════════════════════════════════════
-
-TROUBLESHOOTING
-
-  "Unauthorized" errors:
-    • Run /fabric:configure to set up credentials
-    • Check service principal is enabled in Fabric Admin Portal
-    • Verify credentials with /fabric:test-connection
-
-  "Forbidden" errors:
-    • Add service principal to workspace (Admin/Member/Contributor role)
-    • Check workspace-level permissions
-    • Verify capacity permissions for capacity operations
-
-  "Not Found" errors:
-    • Verify resource ID is correct (must be GUID format)
-    • Check you have access to the resource
-    • Resource may have been deleted
-
-  Rate limiting (429):
-    • Plugin automatically retries with exponential backoff
-    • Wait a few minutes if persistent
-    • Reduce frequency of API calls
-
-═══════════════════════════════════════════════════════════════════
-
-RESOURCES
-
-  Plugin repository:
-    https://github.com/Myst4ke/fabric-claude-plugin
-
-  Microsoft Fabric API documentation:
-    https://learn.microsoft.com/en-us/rest/api/fabric/
-
-  Report issues:
-    https://github.com/Myst4ke/fabric-claude-plugin/issues
-
-  Fabric service status:
-    https://status.fabric.microsoft.com
-
-═══════════════════════════════════════════════════════════════════
-
-GETTING HELP
-
-  For command-specific help:
-    /fabric:help <command-name>
-
-  Example:
-    /fabric:help configure
-    /fabric:help list-workspaces
-
-  For questions or issues:
-    • Check plugin documentation
-    • Review command examples
-    • Run commands with --help flag (where supported)
-    • Report issues on GitHub
-
-═══════════════════════════════════════════════════════════════════
-
-PLUGIN INFORMATION
-
-  Name:     fabric-plugin
-  Version:  0.1.0
-  Author:   Florian POSEZ
-  License:  MIT
-  Status:   Phase 1 (Foundation) - Active Development
-
-  Currently implemented:
-    ✓ 4 Core skills (auth, error handling, LRO, pagination)
-    ✓ 3 Setup commands
-    ✓ 2 Workspace commands
-    ✓ 1 Agent (fabric-admin)
-
-  Coming soon (Phase 2-10):
-    ○ Complete workspace management
-    ○ Data pipeline operations
-    ○ Lakehouse & notebook operations
-    ○ Power BI semantic models & reports
-    ○ Advanced automation & CI/CD
-    ○ 190+ additional operations
-
-═══════════════════════════════════════════════════════════════════
+EOF
+fi
 ```
 
-### 3. Display Command-Specific Help
-When user requests help for a specific command:
+### 3. Display Specific Command Help
 
-```
-/fabric:help list-workspaces
+If command name provided, show detailed help:
 
-═══════════════════════════════════════════════════════════════════
+```bash
+if [ "$show_specific_help" = true ]; then
+  case "$command_name" in
+    "login")
+      cat <<'EOF'
+Command: /fabric-plugin:setup:login
 
-COMMAND: /fabric:list-workspaces
+Sign in with your Microsoft account for Fabric API access.
 
-DESCRIPTION
-  List all Microsoft Fabric workspaces accessible to the authenticated
-  service principal.
+Usage:
+  /fabric-plugin:setup:login [--scopes <scopes>]
 
-USAGE
-  /fabric:list-workspaces [--role <role>]
+Description:
+  Opens your browser to Microsoft login page. After signing in,
+  tokens are cached and refreshed automatically for months.
 
-ARGUMENTS
-  --role    Optional. Filter workspaces by your role
-            Values: Admin, Member, Contributor, Viewer
+Options:
+  --scopes   Custom OAuth scopes (advanced)
 
-EXAMPLES
-  # List all workspaces
-  /fabric:list-workspaces
+Example:
+  /fabric-plugin:setup:login
 
-  # List only workspaces where you're Admin
-  /fabric:list-workspaces --role Admin
+What happens:
+  1. Browser opens to Microsoft login
+  2. Sign in with your account
+  3. Accept permissions
+  4. Tokens cached automatically
+  5. Ready to use Fabric commands!
 
-  # List workspaces where you're Contributor or higher
-  /fabric:list-workspaces --role Contributor
+After successful login, try asking Claude to list your
+workspaces (fabric-plugin:workspace-list skill).
+EOF
+      ;;
 
-OUTPUT
-  Displays a formatted table with:
-  • Workspace name
-  • Workspace ID (GUID)
-  • Type
-  • Capacity assignment
-  • Your role
+    "logout")
+      cat <<'EOF'
+Command: /fabric-plugin:setup:logout
 
-NOTES
-  • Automatically handles pagination for large result sets
-  • Only shows workspaces you have access to
-  • Empty list means no workspace access (not an error)
+Sign out and clear all cached credentials.
 
-RELATED COMMANDS
-  /fabric:get-workspace     Get detailed workspace information
-  /fabric:create-workspace  Create a new workspace
+Usage:
+  /fabric-plugin:setup:logout [--all]
 
-═══════════════════════════════════════════════════════════════════
-```
+Description:
+  Removes cached access tokens and refresh tokens.
+  After logout, you'll need to authenticate again.
 
-## Available Help Topics
+Options:
+  --all      Clear all authentication data
 
-### Configuration Help
-When user asks about setup/configuration:
-```
-/fabric:help setup
+Example:
+  /fabric-plugin:setup:logout
 
-SETUP GUIDE
+What is cleared:
+  - Access tokens
+  - Refresh tokens
+  - PKCE codes
+  - All cached credentials
 
-To start using the Fabric plugin:
+After logout, authenticate again with:
+  /fabric-plugin:setup:login
+EOF
+      ;;
 
-1. Create Service Principal (if needed)
-   • Azure Portal → Azure Active Directory
-   • App registrations → New registration
-   • Copy Tenant ID and Client ID
-   • Create client secret
+    "configure")
+      cat <<'EOF'
+Command: /fabric-plugin:setup:configure
 
-2. Configure Plugin
-   /fabric:configure
+Interactive setup for Fabric API credentials (service principal).
 
-   This will prompt you for:
-   • Tenant ID
-   • Client ID
-   • Client secret
+Usage:
+  /fabric-plugin:setup:configure [--validate]
 
-3. Enable Service Principal in Fabric
-   • Fabric Admin Portal → Tenant settings
-   • Enable "Service principals can use Fabric APIs"
-   • Add your SP to allowed list
-   • Wait 15 minutes for propagation
+Description:
+  Guides you through setting up Azure AD service principal
+  credentials for API access. Use this for automation and CI/CD.
 
-4. Add SP to Workspaces
-   • Open workspace → Manage access
-   • Add service principal
-   • Assign role (Admin/Member/Contributor)
+Options:
+  --validate     Test existing credentials
 
-5. Test Connection
-   /fabric:test-connection
+What you'll need:
+  - Azure AD Tenant ID
+  - App Registration Client ID
+  - Client Secret
 
-You're ready! Try: /fabric:list-workspaces
-```
+For personal use, consider using:
+  /fabric-plugin:setup:login (easier, no Azure AD setup)
 
-### Authentication Help
-```
-/fabric:help authentication
+Example:
+  /fabric-plugin:setup:configure
+EOF
+      ;;
 
-AUTHENTICATION GUIDE
+    "test-connection")
+      cat <<'EOF'
+Command: /fabric-plugin:setup:test-connection
 
-The plugin uses OAuth 2.0 client credentials flow:
+Test Microsoft Fabric API connectivity and authentication.
 
-1. Plugin reads credentials from environment:
-   • FABRIC_TENANT_ID
-   • FABRIC_CLIENT_ID
-   • FABRIC_CLIENT_SECRET
+Usage:
+  /fabric-plugin:setup:test-connection [--verbose]
 
-2. Acquires token from Microsoft Entra ID:
-   POST https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token
+Description:
+  Verifies your credentials work and API is accessible.
+  Shows response time and available workspaces.
 
-3. Caches token (valid for 60 minutes)
+Options:
+  --verbose      Show detailed connection information
 
-4. Uses token in API requests:
-   Authorization: Bearer {token}
+Example:
+  /fabric-plugin:setup:test-connection
 
-Token is automatically refreshed when expired.
+What is tested:
+  ✓ Credentials are configured
+  ✓ Authentication succeeds
+  ✓ API is accessible
+  ✓ Permissions are working
 
-TROUBLESHOOTING
+Sample output:
+  ✅ Authentication successful
+  ✅ API accessible
+  Response time: 234ms
+  Available workspaces: 8
+EOF
+      ;;
 
-Unauthorized (401):
-  • Check credentials are set
-  • Run /fabric:test-connection
-  • Verify service principal exists
-
-Forbidden (403):
-  • Enable SP in Fabric Admin Portal
-  • Add SP to workspace
-  • Grant appropriate role
-
-Token expired:
-  • Plugin auto-refreshes
-  • Check system time is correct
-  • Verify tenant ID is correct
-```
-
-### Error Help
-```
-/fabric:help errors
-
-COMMON ERRORS & SOLUTIONS
-
-401 Unauthorized
-  Problem: Authentication failed
-  Solution: Run /fabric:configure and /fabric:test-connection
-
-403 Forbidden
-  Problem: Insufficient permissions
-  Solution: Add service principal to workspace with appropriate role
-
-404 Not Found
-  Problem: Resource doesn't exist or no access
-  Solution: Verify resource ID and check permissions
-
-429 Rate Limited
-  Problem: Too many API requests
-  Solution: Wait and retry (auto-handled by plugin)
-
-500 Server Error
-  Problem: Fabric service issue
-  Solution: Retry in a few minutes, check service status
-
-Network Errors
-  Problem: Connection issues
-  Solution: Check internet, firewall, proxy settings
-
-For detailed error information, run commands with --verbose flag.
-```
-
-### API Reference Help
-```
-/fabric:help api
-
-API REFERENCE
-
-Base URL: https://api.fabric.microsoft.com/v1/
-
-Authentication: OAuth 2.0 Bearer token
-
-Rate Limits: ~100 items per page, API-enforced throttling
-
-Pagination: continuationToken pattern
-
-Long-running operations: 202 Accepted with polling
-
-Common patterns:
-  • List operations return paginated results
-  • Create/Update operations may be async (LRO)
-  • All operations require authentication
-  • GUIDs used for resource identifiers
-
-Official documentation:
-  https://learn.microsoft.com/en-us/rest/api/fabric/
-
-API specifications:
-  https://github.com/microsoft/fabric-rest-api-specs
+    *)
+      echo "Unknown command: $command_name"
+      echo ""
+      echo "Available commands:"
+      echo "  login, logout, configure, test-connection, help"
+      echo ""
+      echo "Run '/fabric-plugin:setup:help' for general help"
+      exit 1
+      ;;
+  esac
+fi
 ```
 
 ## Error Scenarios
 
-### Unknown Command
-```
-/fabric:help unknown-command
+- **Unknown command name**: Show available commands
+- **No errors possible**: This command is informational only
 
-❌ Unknown command: unknown-command
+## Example Usage
 
-Available commands:
-  • configure
-  • test-connection
-  • list-workspaces
-  • get-workspace
-  • help
+```bash
+# Show general help
+/fabric-plugin:setup:help
 
-Run /fabric:help to see all commands
-```
+# Show help for login command
+/fabric-plugin:setup:help login
 
-### No Help Available
-```
-/fabric:help create-ml-model
-
-ℹ️ Command not yet implemented
-
-This command is planned for Phase 9 (ML & External Data).
-
-Currently available commands:
-  • Setup: configure, test-connection, help
-  • Workspace: list-workspaces, get-workspace
-
-Check back in future releases or see roadmap:
-  https://github.com/Myst4ke/fabric-claude-plugin#roadmap
+# Show help for test-connection
+/fabric-plugin:setup:help test-connection
 ```
 
 ## Related Commands
-- `/fabric:configure` - Set up credentials
-- `/fabric:test-connection` - Test connection
 
-## Testing Checklist
-- [ ] No arguments → Display main help screen
-- [ ] Valid command name → Show command-specific help
-- [ ] Invalid command name → Error with available commands
-- [ ] Help topics (setup, auth, errors) → Display topic help
-- [ ] Formatted output → Clear and readable
-- [ ] Examples included → Helpful and accurate
-- [ ] Links work → URLs are correct
-- [ ] Version displayed → Matches plugin.json
+- All other commands (this is the entry point for discovering them)
