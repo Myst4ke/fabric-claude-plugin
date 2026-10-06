@@ -24,8 +24,21 @@ def show_status(workspace_id):
     try:
         conn = fabric_request_json(
             f"{FABRIC_API_BASE}/workspaces/{workspace_id}/git/connection")
-        provider = conn.get('gitProviderDetails', {})
+        # A workspace that was never connected answers HTTP 200 with
+        # gitProviderDetails explicitly null (not 404, and not a missing key),
+        # so `.get(key, {})` still yields None. Guard before any attribute use.
+        provider = conn.get('gitProviderDetails') or {}
+        state = conn.get('gitConnectionState', 'Unknown')
+        if not provider:
+            print(f"\n  [INFO] Workspace is NOT connected to Git "
+                  f"(state: {state}).")
+            print("  Git status and update-from-Git do not apply to this "
+                  "workspace: it receives changes only through deployment "
+                  "pipelines or direct edits.")
+            print(f"  Connect: fabric-plugin:git-connect {workspace_id} ...")
+            return 0
         print(f"\n  Connection:")
+        print(f"    State:       {state}")
         print(f"    Provider:    {provider.get('gitProviderType', 'N/A')}")
         print(f"    Org:         {provider.get('organizationName', 'N/A')}")
         if provider.get('projectName'):
@@ -34,7 +47,7 @@ def show_status(workspace_id):
         print(f"    Branch:      {provider.get('branchName', 'N/A')}")
         print(f"    Directory:   {provider.get('directoryName', '/')}")
 
-        sync_details = conn.get('gitSyncDetails', {})
+        sync_details = conn.get('gitSyncDetails') or {}
         if sync_details:
             head = sync_details.get('head', 'N/A')
             last_sync = sync_details.get('lastSyncTime', 'N/A')
