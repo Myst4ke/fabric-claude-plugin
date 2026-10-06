@@ -20,11 +20,30 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/py.sh" "${CLAUDE_PLUGIN_ROOT}/skills/
 
 ```
 git_update.py <workspace> [--conflict-resolution {PreferWorkspace,PreferRemote}]
+                          [--allow-override-items]
 ```
 
 ## Parameters
 - `<workspace>` (required): Workspace **name or GUID** (names are resolved automatically)
-- `--conflict-resolution` (optional): Conflict resolution strategy (default: `PreferRemote`)
+- `--conflict-resolution` (optional): which side wins on conflict (default: `PreferRemote`)
+- `--allow-override-items` (optional): authorize replacing existing workspace items.
+  The API **requires** this consent as soon as an incoming item already exists in the
+  workspace; without it the call fails with `OverrideItemsNotAllowed`.
+
+## API contract (why the body is built this way)
+`POST /workspaces/{id}/git/updateFromGit` requires four things, all of which the skill
+now resolves automatically by reading `/git/status` first:
+- `workspaceHead` and `remoteCommitHash` — both mandatory, and they pin the update to
+  the state actually observed, so a concurrent commit cannot be applied silently.
+- `conflictResolution.conflictResolutionType` — the side being resolved, always
+  `Workspace`. It is **not** the policy: sending `PreferRemote` here is rejected.
+- `conflictResolution.conflictResolutionPolicy` — who wins (`PreferRemote` /
+  `PreferWorkspace`), which is what `--conflict-resolution` sets.
+
+## Limitation: workspaces not connected to Git
+Only a Git-connected workspace can be updated. On a workspace with no connection the
+skill exits 1 with a clear message — such a workspace is fed by **deployment pipelines**
+or direct edits instead.
 
 ## Examples
 ```bash
